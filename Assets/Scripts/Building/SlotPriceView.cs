@@ -1,0 +1,92 @@
+using TMPro;
+using UnityEngine;
+
+/// <summary>
+/// Floor label of a BuildSlot: shows the name and price on the slot rectangle.
+/// Text color reflects the state:
+///   Locked                    - grey, shows what must be built first
+///   Available, can afford     - green
+///   Available, cannot afford  - red
+/// Hides itself when the slot is built.
+/// </summary>
+public class SlotPriceView : MonoBehaviour
+{
+    [Header("Colors")]
+    [SerializeField] private Color lockedColor = new Color(0.55f, 0.55f, 0.55f);
+    [SerializeField] private Color affordableColor = new Color(0.35f, 0.85f, 0.35f);
+    [SerializeField] private Color unaffordableColor = new Color(0.9f, 0.3f, 0.3f);
+
+    [SerializeField] private TextMeshPro label;
+
+    private BuildSlot slot;
+    private EconomyManager economy;
+
+    private void Awake()
+    {
+        if (label == null) label = GetComponentInChildren<TextMeshPro>();
+
+        slot = GetComponentInParent<BuildSlot>();
+    }
+
+    // Subscribe in Start: all Awake calls (EconomyManager.Instance) are guaranteed to be done.
+    private void Start()
+    {
+        if (slot == null)
+        {
+            Debug.LogWarning($"{name}: no BuildSlot found in parents.", this);
+            return;
+        }
+
+        slot.OnStateChanged += HandleSlotChanged;
+
+        economy = EconomyManager.Instance;
+        if (economy != null)
+            economy.OnBalanceChanged += HandleBalanceChanged;
+
+        Refresh();
+    }
+
+    private void OnDestroy()
+    {
+        if (slot != null) slot.OnStateChanged -= HandleSlotChanged;
+        if (economy != null) economy.OnBalanceChanged -= HandleBalanceChanged;
+    }
+
+    private void HandleSlotChanged(BuildSlot _) => Refresh();
+
+    private void HandleBalanceChanged(CurrencyType type, double balance, double delta)
+    {
+        if (type == CurrencyType.Cash) Refresh();
+    }
+
+    private void Refresh()
+    {
+        switch (slot.State)
+        {
+            case SlotState.Built:
+                gameObject.SetActive(false);   // the building replaces the label
+                break;
+
+            case SlotState.Locked:
+                label.color = lockedColor;
+                label.text = BuildLockedText();
+                break;
+
+            case SlotState.Available:
+                bool canAfford = economy != null && economy.CanAfford(CurrencyType.Cash, slot.Building.Price);
+                label.color = canAfford ? affordableColor : unaffordableColor;
+                label.text = $"{slot.Building.DisplayName}\n${EconomyManager.Format(slot.Building.Price)}";
+                break;
+        }
+    }
+
+    private string BuildLockedText()
+    {
+        BuildSlot required = slot.RequiredSlot;
+        string requiredName = required != null && required.Building != null
+            ? required.Building.DisplayName
+            : "previous";
+
+        return $"Need: {requiredName}";
+    }
+}
