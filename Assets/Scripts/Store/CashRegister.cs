@@ -30,6 +30,11 @@ public class CashRegister : MonoBehaviour, IBuildable, ICheckout
     private float serviceTimer;
     private bool awaitingRelease;   // paid, but the head is still finishing its goodbye
 
+    // Customers that joined but are still walking to the end of the lane.
+    private readonly HashSet<IShopCustomer> approaching = new HashSet<IShopCustomer>();
+
+    private bool headReady;         // the head of the queue stands at the service spot
+
     public BuildSlot Slot { get; private set; }
 
     /// <summary>Maximum number of customers (including the one being served).</summary>
@@ -43,14 +48,21 @@ public class CashRegister : MonoBehaviour, IBuildable, ICheckout
 
     public void OnBuilt(BuildSlot slot) => Slot = slot;
 
-    /// <summary>Puts the customer at the end of the queue. Returns false if the queue is full.</summary>
+    /// <summary>
+    /// Puts the customer at the end of the queue. Returns false if the queue is full.
+    /// The customer first walks to the end of the lane and only then along it to its place,
+    /// so it never cuts in from the side or from the front.
+    /// </summary>
     public bool TryJoin(IShopCustomer customer)
     {
         if (customer == null || !HasFreeSpot || queue.Contains(customer))
             return false;
 
         queue.Add(customer);
-        SendToPoint(queue.Count - 1);
+        approaching.Add(customer);
+
+        Transform laneEnd = queuePoints[Capacity - 1];
+        customer.MoveTo(laneEnd.position, laneEnd.rotation, () => OnReachedLaneEnd(customer));
         return true;
     }
 
@@ -61,10 +73,12 @@ public class CashRegister : MonoBehaviour, IBuildable, ICheckout
         if (index < 0) return;
 
         queue.RemoveAt(index);
+        approaching.Remove(customer);
         if (index == 0)
         {
             serviceTimer = 0f;
             awaitingRelease = false;
+            headReady = false;
         }
 
         ShiftQueue(index);
@@ -72,16 +86,12 @@ public class CashRegister : MonoBehaviour, IBuildable, ICheckout
 
     private void Update()
     {
-        if (queue.Count == 0 || awaitingRelease) return;
-
-        IShopCustomer head = queue[0];
-
-        // Service starts only when the customer has actually reached the service spot.
-        if (!head.IsAtDestination) return;
+        // The timer runs only while the head stands at the service spot.
+        if (!headReady || awaitingRelease) return;
 
         serviceTimer += Time.deltaTime;
         if (serviceTimer >= serviceTime)
-            CompleteService(head);
+            CompleteService(queue[0]);
     }
 
     private void CompleteService(IShopCustomer customer)
@@ -107,6 +117,7 @@ public class CashRegister : MonoBehaviour, IBuildable, ICheckout
 
         queue.RemoveAt(0);
         awaitingRelease = false;
+        headReady = false;
         ShiftQueue(0);
     }
 
@@ -117,10 +128,35 @@ public class CashRegister : MonoBehaviour, IBuildable, ICheckout
             SendToPoint(i);
     }
 
+    /// <summary>The customer reached the end of the lane: now it walks along it to its own place.</summary>
+    private void OnReachedLaneEnd(IShopCustomer customer)
+    {
+        approaching.Remove(customer);
+
+        int index = queue.IndexOf(customer);
+        if (index >= 0) SendToPoint(index);
+    }
+
+    /// <summary>The customer reached its queue point. If it is the head, service can start.</summary>
+    private void OnReachedPoint(IShopCustomer customer)
+    {
+        if (queue.Count > 0 && queue[0] == customer)
+            headReady = true;
+    }
+
     private void SendToPoint(int index)
     {
+        IShopCustomer customer = queue[index];
+
+        // Customers still walking to the end of the lane get their real point on arrival.
+        if (approaching.Contains(customer)) return;
+
+        // Only the head needs to be notified: its arrival starts the service.
+        Action onArrived = null;
+        if (index == 0) onArrived = () => OnReachedPoint(customer);
+
         Transform point = queuePoints[index];
-        queue[index].MoveTo(point.position, point.rotation);
+        customer.MoveTo(point.position, point.rotation, onArrived);
     }
 
     private void OnDrawGizmosSelected()

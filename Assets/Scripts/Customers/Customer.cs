@@ -73,6 +73,7 @@ public class Customer : MonoBehaviour, IShopCustomer
     private float paidTimer;
     private float paidDuration;      // how long the goodbye wave lasts
     private Action servedCallback; // tells the register that we are done
+    private Action arrivalCallback; // called once when the current destination is reached
     private float retryTimer;
     private float waited;
     private Quaternion? facing;   // rotation to take once the destination is reached
@@ -96,7 +97,8 @@ public class Customer : MonoBehaviour, IShopCustomer
         }
     }
 
-    public void MoveTo(Vector3 position, Quaternion rotation) => GoTo(position, rotation);
+    public void MoveTo(Vector3 position, Quaternion rotation, Action onArrived = null)
+        => GoTo(position, rotation, onArrived);
 
     public void OnServed(Action onFinished)
     {
@@ -148,6 +150,7 @@ public class Customer : MonoBehaviour, IShopCustomer
         currentShelf = null;
         currentPoint = null;
         servedCallback = null;
+        arrivalCallback = null;
         facing = null;
         pickTimer = 0f;
         paidTimer = 0f;
@@ -173,6 +176,8 @@ public class Customer : MonoBehaviour, IShopCustomer
 
     private void Update()
     {
+        NotifyArrival();
+
         switch (state)
         {
             case CustomerState.ChoosingShelf:
@@ -359,10 +364,21 @@ public class Customer : MonoBehaviour, IShopCustomer
         retryTimer = 0f;
     }
 
-    private void GoTo(Vector3 position, Quaternion? rotation)
+    private void GoTo(Vector3 position, Quaternion? rotation, Action onArrived = null)
     {
         facing = rotation;
+        arrivalCallback = onArrived;   // a new destination always replaces the pending notification
         agent.SetDestination(position);
+    }
+
+    /// <summary>Calls the pending arrival callback once the destination has been reached.</summary>
+    private void NotifyArrival()
+    {
+        if (arrivalCallback == null || !IsAtDestination) return;
+
+        Action callback = arrivalCallback;
+        arrivalCallback = null;   // clear first: the callback may send us somewhere else
+        callback();
     }
 
     /// <summary>Once the destination is reached, smoothly turn to the requested rotation.</summary>

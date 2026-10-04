@@ -11,14 +11,11 @@ public interface IShopCustomer
     double BasketTotal { get; }
 
     /// <summary>
-    /// True only when the customer has reached its current destination and stands still.
-    /// Must be false while a path is still being calculated or walked
-    /// (with NavMeshAgent: !pathPending and remainingDistance <= stoppingDistance).
+    /// Orders the customer to walk to a point and face the given rotation on arrival.
+    /// 'onArrived' (optional) is called once when the customer has reached that point.
+    /// A new MoveTo replaces the previous destination together with its pending callback.
     /// </summary>
-    bool IsAtDestination { get; }
-
-    /// <summary>Orders the customer to walk to a point and face the given rotation on arrival.</summary>
-    void MoveTo(Vector3 position, Quaternion rotation);
+    void MoveTo(Vector3 position, Quaternion rotation, Action onArrived = null);
 
     /// <summary>
     /// Called after the customer has paid. The customer finishes its goodbye (e.g. a wave)

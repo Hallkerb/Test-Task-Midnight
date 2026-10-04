@@ -35,6 +35,8 @@ public class BuildSlot : MonoBehaviour, IPointerClickHandler
     [SerializeField] private GameObject lockedVisual;
     [Tooltip("Shown while the slot is Available (price tag, highlight).")]
     [SerializeField] private GameObject availableVisual;
+    [Tooltip("Shown in every state until the slot is built (e.g. a barrier). Hidden once Built.")]
+    [SerializeField] private GameObject[] showUntilBuilt;
 
     /// <summary>Raised once the building has been spawned.</summary>
     public event Action<BuildSlot> OnBuilt;
@@ -119,6 +121,12 @@ public class BuildSlot : MonoBehaviour, IPointerClickHandler
 
         if (lockedVisual != null) lockedVisual.SetActive(newState == SlotState.Locked);
         if (availableVisual != null) availableVisual.SetActive(newState == SlotState.Available);
+
+        if (showUntilBuilt != null)
+        {
+            foreach (GameObject go in showUntilBuilt)
+                if (go != null) go.SetActive(newState != SlotState.Built);
+        }
 
         OnStateChanged?.Invoke(this);
     }
