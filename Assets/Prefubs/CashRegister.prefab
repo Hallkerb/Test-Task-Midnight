@@ -170,6 +170,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3429516747582834677}
   - component: {fileID: 4157940638761188272}
+  - component: {fileID: -179314023594412457}
   m_Layer: 0
   m_Name: CashRegister
   m_TagString: Untagged
@@ -210,6 +211,25 @@ NavMeshObstacle:
   m_CarveOnlyStationary: 1
   m_Center: {x: 0, y: 0, z: 0.68}
   m_TimeToStationary: 0.1
+--- !u!114 &-179314023594412457
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5012098631972772755}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6f7ab14ab38fab54bb401138e94beee9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CashRegister
+  queuePoints:
+  - {fileID: 1915307047989596923}
+  - {fileID: 2654504623820771471}
+  - {fileID: 4241783314580788431}
+  - {fileID: 4355547858587632283}
+  activeQueueLength: 3
+  serviceTime: 2
 --- !u!1 &5569580877558584135
 GameObject:
   m_ObjectHideFlags: 0

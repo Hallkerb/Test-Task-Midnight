@@ -6,7 +6,8 @@ using UnityEngine;
 /// A cash register with a queue. queuePoints[0] is the service spot right at the register,
 /// the following points go backwards: the customer at queue[i] stands at queuePoints[i].
 /// The customer at the head is served for 'serviceTime' seconds, then pays via
-/// EconomyManager.RegisterSale() and the queue moves up by one.
+/// EconomyManager.RegisterSale(). The queue moves up only after the served customer has
+/// finished its goodbye and reported back, so the next one never walks into it.
 /// Purchasing and upgrading are handled by BuildSlot, not by the register itself.
 /// </summary>
 [DisallowMultipleComponent]
@@ -16,17 +17,18 @@ public class CashRegister : MonoBehaviour, IBuildable, ICheckout
     [Tooltip("Point 0 = service spot at the register, then the queue going backwards. Rotate them to face the register.")]
     [SerializeField] private Transform[] queuePoints;
     [Tooltip("How many of the points are in use. Reserved for future upgrades (longer queue).")]
-    [SerializeField, Min(1)] private int activeQueueLength = 4;
+    [SerializeField, Min(1)] private int activeQueueLength = 3;
 
     [Header("Service")]
     [Tooltip("Seconds needed to serve one customer.")]
     [SerializeField, Min(0.1f)] private float serviceTime = 2f;
 
-    /// <summary>A sale was completed: (this register, amount actually paid).</summary>
+    /// <summary>A sale was completed: (this register, amount actually paid). Use it for +$ popups.</summary>
     public event Action<CashRegister, double> OnSaleCompleted;
 
     private readonly List<IShopCustomer> queue = new List<IShopCustomer>();
     private float serviceTimer;
+    private bool awaitingRelease;   // paid, but the head is still finishing its goodbye
 
     public BuildSlot Slot { get; private set; }
 
@@ -59,14 +61,18 @@ public class CashRegister : MonoBehaviour, IBuildable, ICheckout
         if (index < 0) return;
 
         queue.RemoveAt(index);
-        if (index == 0) serviceTimer = 0f;
+        if (index == 0)
+        {
+            serviceTimer = 0f;
+            awaitingRelease = false;
+        }
 
         ShiftQueue(index);
     }
 
     private void Update()
     {
-        if (queue.Count == 0) return;
+        if (queue.Count == 0 || awaitingRelease) return;
 
         IShopCustomer head = queue[0];
 
@@ -81,15 +87,26 @@ public class CashRegister : MonoBehaviour, IBuildable, ICheckout
     private void CompleteService(IShopCustomer customer)
     {
         serviceTimer = 0f;
-        queue.RemoveAt(0);
+        awaitingRelease = true;
 
         double paid = 0;
         if (EconomyManager.Instance != null)
             paid = EconomyManager.Instance.RegisterSale(customer.BasketTotal);
 
-        customer.OnServed();
         OnSaleCompleted?.Invoke(this, paid);
 
+        // The customer stays at the register (still counts as part of the queue)
+        // until it finishes its goodbye and calls us back.
+        customer.OnServed(() => ReleaseHead(customer));
+    }
+
+    private void ReleaseHead(IShopCustomer customer)
+    {
+        // Ignore a late callback if the customer was already removed (e.g. via Leave).
+        if (queue.Count == 0 || queue[0] != customer) return;
+
+        queue.RemoveAt(0);
+        awaitingRelease = false;
         ShiftQueue(0);
     }
 

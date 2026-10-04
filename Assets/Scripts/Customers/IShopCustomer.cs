@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 /// <summary>
@@ -11,13 +12,18 @@ public interface IShopCustomer
 
     /// <summary>
     /// True only when the customer has reached its current destination and stands still.
-    /// Must be false while a path is still being calculated or walked.
+    /// Must be false while a path is still being calculated or walked
+    /// (with NavMeshAgent: !pathPending and remainingDistance <= stoppingDistance).
     /// </summary>
     bool IsAtDestination { get; }
 
     /// <summary>Orders the customer to walk to a point and face the given rotation on arrival.</summary>
     void MoveTo(Vector3 position, Quaternion rotation);
 
-    /// <summary>Called after the customer has paid. The customer should leave the store.</summary>
-    void OnServed();
+    /// <summary>
+    /// Called after the customer has paid. The customer finishes its goodbye (e.g. a wave)
+    /// and MUST invoke 'onFinished' exactly once when done: only then does the register
+    /// call the next customer. After that the customer leaves the store.
+    /// </summary>
+    void OnServed(Action onFinished);
 }
