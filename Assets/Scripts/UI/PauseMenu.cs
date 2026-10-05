@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 /// <summary>
 /// In-game pause: freezes the game (Time.timeScale = 0), shows the pause panel
@@ -58,7 +57,9 @@ public class PauseMenu : MonoBehaviour
     {
         Time.timeScale = 1f;   // otherwise the next scene would start frozen
 
-        // The save system will be called here once it exists.
+        // Save now: after the scene unloads the economy and the slots no longer exist.
+        SaveSystem.SaveGame();
+
         SceneTransition.LoadWithScreen(menuSceneName);
     }
 

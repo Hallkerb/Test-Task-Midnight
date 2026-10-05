@@ -10,8 +10,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a17233aa93e4f864e9f9724b2d61ae3c, type: 3}
-  m_Name: Product_Food
+  m_Name: Product 6
   m_EditorClassIdentifier: Assembly-CSharp::ProductData
   displayName: Food
-  basePrice: 10
+  basePrice: 40
   icon: {fileID: 0}

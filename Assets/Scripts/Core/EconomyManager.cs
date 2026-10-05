@@ -10,20 +10,6 @@ public enum CurrencyType
 }
 
 /// <summary>
-/// Economy data for the save system.
-/// Serialized via JsonUtility.
-/// </summary>
-[Serializable]
-public class EconomyData
-{
-    public double cash;
-    public double gems;
-    public double totalEarnedCash;
-    public double averageIncomePerSecond;   // used to calculate offline earnings
-    public long lastSaveUnixTime;           // UTC, seconds
-}
-
-/// <summary>
 /// Manages the player's balance and income multipliers.
 /// Money does NOT arrive passively: it comes only from customers via RegisterSale().
 /// The manager tracks a smoothed average income per second, which is later used

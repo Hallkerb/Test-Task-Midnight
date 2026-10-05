@@ -54,6 +54,9 @@ public class BuildSlot : MonoBehaviour, IPointerClickHandler
 
     private bool IsUnlocked => requiredSlot == null || requiredSlot.State == SlotState.Built;
 
+    private void OnEnable() => StoreRegistry.Register(this);
+    private void OnDisable() => StoreRegistry.Unregister(this);
+
     private void Awake()
     {
         if (spawnPoint == null) spawnPoint = transform;

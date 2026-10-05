@@ -2,18 +2,22 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Keeps track of the shelves and checkouts that currently exist in the store.
-/// Works with interfaces (IShelf, ICheckout), so new kinds of shelves or registers
+/// Keeps track of the things that currently exist in the store: shelves, checkouts and build slots.
+/// Shelves and checkouts are handled through interfaces (IShelf, ICheckout), so new kinds of them
 /// can be added without touching the customers.
-/// Objects register themselves in OnEnable and unregister in OnDisable.
+/// Everything registers itself in OnEnable and unregisters in OnDisable.
 /// </summary>
 public static class StoreRegistry
 {
     private static readonly List<IShelf> shelves = new List<IShelf>();
     private static readonly List<ICheckout> checkouts = new List<ICheckout>();
+    private static readonly List<BuildSlot> slots = new List<BuildSlot>();
 
     public static IReadOnlyList<IShelf> Shelves => shelves;
     public static IReadOnlyList<ICheckout> Checkouts => checkouts;
+
+    /// <summary>All build slots of the scene (used by the save system).</summary>
+    public static IReadOnlyList<BuildSlot> Slots => slots;
 
     /// <summary>
     /// Maximum number of customers allowed in the store at once:
@@ -42,6 +46,7 @@ public static class StoreRegistry
     {
         shelves.Clear();
         checkouts.Clear();
+        slots.Clear();
     }
 
     public static void Register(IShelf shelf)
@@ -57,6 +62,13 @@ public static class StoreRegistry
     }
 
     public static void Unregister(ICheckout checkout) => checkouts.Remove(checkout);
+
+    public static void Register(BuildSlot slot)
+    {
+        if (!slots.Contains(slot)) slots.Add(slot);
+    }
+
+    public static void Unregister(BuildSlot slot) => slots.Remove(slot);
 
     /// <summary>Returns the checkout with the shortest queue that still has a free spot (or null).</summary>
     public static ICheckout FindBestCheckout()
