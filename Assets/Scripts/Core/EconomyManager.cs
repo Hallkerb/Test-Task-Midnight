@@ -29,6 +29,9 @@ public class EconomyManager : MonoBehaviour
     // ------------------------------------------------------------------
     // Inspector settings
     // ------------------------------------------------------------------
+    [Header("Static")]
+    [SerializeField] public static double ExchangeRate = 500; // 1 Gem = 500 Cash
+
     [Header("Starting values (new game)")]
     [SerializeField] private double startingCash = 100;
     [SerializeField] private double startingGems = 0;

@@ -1,31 +1,32 @@
-using System;
-using TMPro;
 using UnityEngine;
+using TMPro;
+using System;
 
 /// <summary>
-/// HUD money counter. Listens to EconomyManager and smoothly "counts" towards the real balance
+/// HUD currency counter. Listens to EconomyManager and smoothly "counts" towards the real balance
 /// instead of jumping, which makes every sale feel rewarding.
 /// Put it on a TextMeshPro (UI) label, or assign the label manually.
 /// </summary>
-public class MoneyView : MonoBehaviour
+public class CurrencyView : MonoBehaviour
 {
-    [SerializeField] private TMP_Text label;
-    [SerializeField] private string prefix = "$";
+    [SerializeField] protected TMP_Text label;
+    [SerializeField] protected string prefix = "$";
     [Tooltip("How fast the shown number catches up with the real balance (higher = faster).")]
-    [SerializeField, Min(1f)] private float catchUpSpeed = 8f;
+    [SerializeField, Min(1f)] protected float catchUpSpeed = 8f;
+    [SerializeField] protected CurrencyType currencyType = CurrencyType.Cash;
 
-    private EconomyManager economy;
-    private double target;       // the real balance
-    private double shown;        // the number currently displayed
-    private long lastRounded = -1;
+    protected EconomyManager economy;
+    protected double target;       // the real balance
+    protected double shown;        // the number currently displayed
+    protected long lastRounded = -1;
 
-    private void Awake()
+    protected virtual void Awake()
     {
         if (label == null) label = GetComponent<TMP_Text>();
     }
 
     // Subscribe in Start: EconomyManager.Instance is guaranteed to exist after all Awake calls.
-    private void Start()
+    protected virtual void Start()
     {
         economy = EconomyManager.Instance;
         if (economy == null || label == null)
@@ -37,20 +38,14 @@ public class MoneyView : MonoBehaviour
 
         economy.OnBalanceChanged += HandleBalanceChanged;
 
-        target = shown = economy.Cash;
+        target = shown = economy.GetBalance(currencyType);
         Refresh();
     }
 
-    private void OnDestroy()
+    protected virtual void OnDestroy()
     {
         if (economy != null)
             economy.OnBalanceChanged -= HandleBalanceChanged;
-    }
-
-    private void HandleBalanceChanged(CurrencyType type, double balance, double delta)
-    {
-        if (type == CurrencyType.Cash)
-            target = balance;
     }
 
     private void Update()
@@ -68,7 +63,13 @@ public class MoneyView : MonoBehaviour
         Refresh();
     }
 
-    private void Refresh()
+    protected virtual void HandleBalanceChanged(CurrencyType type, double balance, double delta)
+    {
+        if (type == currencyType)
+            target = balance;
+    }
+
+    protected virtual void Refresh()
     {
         // Rebuild the text only when the visible number actually changes (no string garbage every frame).
         long rounded = (long)Math.Round(shown);

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 /// <summary>
 /// Keeps track of the things that currently exist in the store: shelves, checkouts and build slots.
@@ -12,12 +13,16 @@ public static class StoreRegistry
     private static readonly List<IShelf> shelves = new List<IShelf>();
     private static readonly List<ICheckout> checkouts = new List<ICheckout>();
     private static readonly List<BuildSlot> slots = new List<BuildSlot>();
+    private static readonly List<StoreSlot> storeSlots = new List<StoreSlot>();
 
     public static IReadOnlyList<IShelf> Shelves => shelves;
     public static IReadOnlyList<ICheckout> Checkouts => checkouts;
 
     /// <summary>All build slots of the scene (used by the save system).</summary>
     public static IReadOnlyList<BuildSlot> Slots => slots;
+    public static IReadOnlyList<StoreSlot> StoreSlots => storeSlots;
+
+    public static event Action OnAnyRegisteredChanged;
 
     /// <summary>
     /// Maximum number of customers allowed in the store at once:
@@ -51,24 +56,63 @@ public static class StoreRegistry
 
     public static void Register(IShelf shelf)
     {
-        if (!shelves.Contains(shelf)) shelves.Add(shelf);
+        if (!shelves.Contains(shelf)) 
+        {
+            shelves.Add(shelf);
+            OnAnyRegisteredChanged?.Invoke();
+        }
     }
 
-    public static void Unregister(IShelf shelf) => shelves.Remove(shelf);
+    public static void Unregister(IShelf shelf)
+    {
+        shelves.Remove(shelf);
+        OnAnyRegisteredChanged?.Invoke();
+    }
 
     public static void Register(ICheckout checkout)
     {
-        if (!checkouts.Contains(checkout)) checkouts.Add(checkout);
+        if (!checkouts.Contains(checkout)) 
+        {
+            checkouts.Add(checkout);
+            OnAnyRegisteredChanged?.Invoke();
+        }
     }
 
-    public static void Unregister(ICheckout checkout) => checkouts.Remove(checkout);
+    public static void Unregister(ICheckout checkout)
+    {
+        checkouts.Remove(checkout);
+        OnAnyRegisteredChanged?.Invoke();
+    }
 
     public static void Register(BuildSlot slot)
     {
-        if (!slots.Contains(slot)) slots.Add(slot);
+        if (!slots.Contains(slot)) 
+        {
+            slots.Add(slot);
+            OnAnyRegisteredChanged?.Invoke();
+        }
     }
 
-    public static void Unregister(BuildSlot slot) => slots.Remove(slot);
+    public static void Unregister(BuildSlot slot)
+    {
+        slots.Remove(slot);
+        OnAnyRegisteredChanged?.Invoke();
+    }
+
+    public static void Register(StoreSlot slot)
+    {
+        if (!storeSlots.Contains(slot)) 
+        {
+            storeSlots.Add(slot);
+            OnAnyRegisteredChanged?.Invoke();
+        }
+    }
+
+    public static void Unregister(StoreSlot slot)
+    {
+        storeSlots.Remove(slot);
+        OnAnyRegisteredChanged?.Invoke();
+    }
 
     /// <summary>Returns the checkout with the shortest queue that still has a free spot (or null).</summary>
     public static ICheckout FindBestCheckout()

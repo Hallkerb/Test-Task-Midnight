@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Pool;
+using System;
 
 /// <summary>
 /// Spawns customers while the store has room for them and reuses finished customers
@@ -12,6 +13,8 @@ using UnityEngine.Pool;
 /// </summary>
 public class CustomerSpawner : MonoBehaviour
 {
+    public static CustomerSpawner Instance { get; private set; }
+
     [Header("Prefabs")]
     [Tooltip("Customer prefabs (different models). A random one is used whenever the pool needs a new customer.")]
     [SerializeField] private Customer[] customerPrefabs;
@@ -33,7 +36,7 @@ public class CustomerSpawner : MonoBehaviour
     [SerializeField, Min(0)] private int prewarmCount = 5;
     [SerializeField, Min(1)] private int maxPoolSize = 30;
 
-    private ObjectPool<Customer> pool;
+    public ObjectPool<Customer> pool { get; private set; }
     private float timer;
 
     /// <summary>Customers currently in the store (for the HUD: "Visitors 5/8").</summary>
@@ -42,8 +45,18 @@ public class CustomerSpawner : MonoBehaviour
     /// <summary>Current visitor limit.</summary>
     public int Limit => Mathf.FloorToInt(StoreRegistry.MaxCustomers * capacityFactor);
 
+    public event Action OnCustomersChanged;
+
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+
         if (customerPrefabs == null || customerPrefabs.Length == 0 || spawnPoint == null || exitPoint == null)
         {
             Debug.LogError($"{name}: assign customer prefabs, a spawn point and an exit point.", this);
@@ -55,23 +68,26 @@ public class CustomerSpawner : MonoBehaviour
 
         pool = new ObjectPool<Customer>(
             createFunc: CreateCustomer,
-            actionOnGet: customer => customer.gameObject.SetActive(true),
-            actionOnRelease: customer => customer.gameObject.SetActive(false),
+            actionOnGet: customer => HandleOnGet(customer),
+            actionOnRelease: customer => HandleOnRelease(customer),
             actionOnDestroy: DestroyCustomer,
             collectionCheck: true,      // catches a customer being released twice
             defaultCapacity: 10,
             maxSize: maxPoolSize);
+
+        Prewarm();
     }
 
     private void Start()
     {
-        Prewarm();
-        timer = Random.Range(spawnInterval.x, spawnInterval.y);
+        timer = UnityEngine.Random.Range(spawnInterval.x, spawnInterval.y);
     }
 
     private void OnDestroy()
     {
         pool?.Dispose();
+
+        if (Instance == this) Instance = null;
     }
 
     private void Update()
@@ -79,7 +95,7 @@ public class CustomerSpawner : MonoBehaviour
         timer -= Time.deltaTime;
         if (timer > 0f) return;
 
-        timer = Random.Range(spawnInterval.x, spawnInterval.y);
+        timer = UnityEngine.Random.Range(spawnInterval.x, spawnInterval.y);
 
         if (ActiveCount < Limit)
             Spawn();
@@ -91,6 +107,7 @@ public class CustomerSpawner : MonoBehaviour
         customer.Initialize(spawnPoint.position, spawnPoint.rotation, exitPoint.position);
     }
 
+    [ContextMenu("Prewarm")]
     private void Prewarm()
     {
         var created = new List<Customer>(prewarmCount);
@@ -105,9 +122,23 @@ public class CustomerSpawner : MonoBehaviour
     // ------------------------------------------------------------------
     // Pool callbacks
     // ------------------------------------------------------------------
+    private void HandleOnGet(Customer customer)
+    {
+        customer.gameObject.SetActive(true);
+        
+        OnCustomersChanged?.Invoke();
+    }
+
+    private void HandleOnRelease(Customer customer)
+    {
+        customer.gameObject.SetActive(false);
+
+        OnCustomersChanged?.Invoke();
+    }
+    
     private Customer CreateCustomer()
     {
-        Customer prefab = customerPrefabs[Random.Range(0, customerPrefabs.Length)];
+        Customer prefab = customerPrefabs[UnityEngine.Random.Range(0, customerPrefabs.Length)];
 
         // Created at the spawn point so that its NavMeshAgent starts on the NavMesh.
         Customer customer = Instantiate(prefab, spawnPoint.position, spawnPoint.rotation, customersRoot);

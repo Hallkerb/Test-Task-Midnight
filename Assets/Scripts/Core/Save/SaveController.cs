@@ -11,6 +11,8 @@ using UnityEngine;
 [DefaultExecutionOrder(-100)]
 public class SaveController : MonoBehaviour
 {
+    public static SaveController Instance { get; private set; }
+
     [SerializeField, Min(5f)] private float autosaveInterval = 30f;
 
     /// <summary>
@@ -21,6 +23,17 @@ public class SaveController : MonoBehaviour
 
     private List<BuildSlot> slots;   // a copy: the registry may already be cleared when this object is destroyed
     private float timer;
+
+    private void Awake()
+    {
+        if (Instance != null)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+    }
 
     // Start runs after every Awake, so EconomyManager and all BuildSlots already exist.
     private void Start()
@@ -49,6 +62,8 @@ public class SaveController : MonoBehaviour
             slot.OnBuilt -= HandleSlotChanged;
             slot.OnUpgraded -= HandleSlotChanged;
         }
+
+        if (Instance == this) Instance = null;
     }
 
     private void Update()
