@@ -168,7 +168,7 @@ public static class SaveSystem
             result.Add(new BuildingSaveData
             {
                 BuildingId = slot.SlotId,
-                CurrentLevel = 0,   // upgrade levels will be stored here once upgrades exist
+                CurrentLevel = slot.Level,
                 IsUnlocked = slot.State == SlotState.Built
             });
         }
@@ -195,7 +195,8 @@ public static class SaveSystem
         {
             if (byId.TryGetValue(slot.SlotId, out BuildingSaveData data) && data.IsUnlocked)
             {
-                slot.RestoreBuilt();
+                // Older saves have no level (0): treat that as level 1.
+                slot.RestoreBuilt(Mathf.Max(1, data.CurrentLevel));
             }
         }
     }

@@ -11,12 +11,12 @@ using UnityEngine;
 /// Purchasing and upgrading are handled by BuildSlot, not by the register itself.
 /// </summary>
 [DisallowMultipleComponent]
-public class CashRegister : MonoBehaviour, IBuildable, ICheckout
+public class CashRegister : MonoBehaviour, IBuildable, ICheckout, IUpgradable
 {
     [Header("Queue")]
     [Tooltip("Point 0 = service spot at the register, then the queue going backwards. Rotate them to face the register.")]
     [SerializeField] private Transform[] queuePoints;
-    [Tooltip("How many of the points are in use. Reserved for future upgrades (longer queue).")]
+    [Tooltip("How many of the points are in use. Overwritten by the upgrade level when built through a slot.")]
     [SerializeField, Min(1)] private int activeQueueLength = 3;
 
     [Header("Service")]
@@ -28,6 +28,8 @@ public class CashRegister : MonoBehaviour, IBuildable, ICheckout
 
     private readonly List<IShopCustomer> queue = new List<IShopCustomer>();
     private float serviceTimer;
+    private RegisterBuildingData data;   // level table, set in OnBuilt
+    private int level = 1;
     private bool awaitingRelease;   // paid, but the head is still finishing its goodbye
 
     // Customers that joined but are still walking to the end of the lane.
@@ -46,7 +48,51 @@ public class CashRegister : MonoBehaviour, IBuildable, ICheckout
     private void OnEnable() => StoreRegistry.Register(this);
     private void OnDisable() => StoreRegistry.Unregister(this);
 
-    public void OnBuilt(BuildSlot slot) => Slot = slot;
+    public void OnBuilt(BuildSlot slot)
+    {
+        Slot = slot;
+        data = slot.Building as RegisterBuildingData;
+    }
+
+    // ------------------------------------------------------------------
+    // IUpgradable
+    // ------------------------------------------------------------------
+    public int Level => level;
+    public int MaxLevel => data != null && data.Levels.Count > 0 ? data.Levels.Count : 1;
+
+    /// <summary>Price to reach the next level (the table entry of that level).</summary>
+    public double NextUpgradePrice => level < MaxLevel ? data.Levels[level].costToReach : 0;
+
+    public void ApplyLevel(int newLevel)
+    {
+        level = Mathf.Clamp(newLevel, 1, MaxLevel);
+        if (data == null || data.Levels.Count == 0) return;
+
+        RegisterLevel stats = data.Levels[level - 1];
+        serviceTime = stats.serviceTime;
+        activeQueueLength = Mathf.Max(1, stats.queueLength);   // Capacity is also limited by the number of Queue Points
+    }
+
+    public IReadOnlyList<UpgradeStat> GetStats()
+    {
+        if (data == null || data.Levels.Count == 0)
+            return Array.Empty<UpgradeStat>();
+
+        RegisterLevel now = data.Levels[level - 1];
+        bool hasNext = level < data.Levels.Count;
+        RegisterLevel next = hasNext ? data.Levels[level] : now;
+
+        return new[]
+        {
+            new UpgradeStat("Service time",
+                UpgradeStat.Number(now.serviceTime) + " s",
+                hasNext ? UpgradeStat.Number(next.serviceTime) + " s" : null),
+
+            new UpgradeStat("Queue length",
+                now.queueLength.ToString(),
+                hasNext ? next.queueLength.ToString() : null)
+        };
+    }
 
     /// <summary>
     /// Puts the customer at the end of the queue. Returns false if the queue is full.

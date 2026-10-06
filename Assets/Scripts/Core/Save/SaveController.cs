@@ -3,7 +3,7 @@ using UnityEngine;
 
 /// <summary>
 /// Lives in the game scene and drives saving and loading:
-/// loads the save when the scene starts and saves periodically, after every purchase,
+/// loads the save when the scene starts and saves periodically, after every purchase or upgrade,
 /// when the app is paused (mobile) and when the app quits.
 /// (Leaving to the main menu is saved by PauseMenu.)
 /// Runs before all other scripts, so every system already sees the loaded values in its own Start.
@@ -30,7 +30,10 @@ public class SaveController : MonoBehaviour
         // Subscribe only after loading: restoring slots must not trigger a save.
         slots = new List<BuildSlot>(StoreRegistry.Slots);
         foreach (BuildSlot slot in slots)
-            slot.OnBuilt += HandleSlotBuilt;
+        {
+            slot.OnBuilt += HandleSlotChanged;
+            slot.OnUpgraded += HandleSlotChanged;
+        }
 
         timer = autosaveInterval;
     }
@@ -40,7 +43,12 @@ public class SaveController : MonoBehaviour
         if (slots == null) return;
 
         foreach (BuildSlot slot in slots)
-            if (slot != null) slot.OnBuilt -= HandleSlotBuilt;
+        {
+            if (slot == null) continue;
+
+            slot.OnBuilt -= HandleSlotChanged;
+            slot.OnUpgraded -= HandleSlotChanged;
+        }
     }
 
     private void Update()
@@ -53,7 +61,7 @@ public class SaveController : MonoBehaviour
         SaveNow();
     }
 
-    private void HandleSlotBuilt(BuildSlot slot) => SaveNow();
+    private void HandleSlotChanged(BuildSlot slot) => SaveNow();
 
     private void OnApplicationPause(bool paused)
     {

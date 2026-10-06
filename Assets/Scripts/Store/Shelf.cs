@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -8,7 +9,7 @@ using UnityEngine;
 /// Purchasing and upgrading are handled by BuildSlot, not by the shelf itself.
 /// </summary>
 [DisallowMultipleComponent]
-public class Shelf : MonoBehaviour, IBuildable, IShelf
+public class Shelf : MonoBehaviour, IBuildable, IShelf, IUpgradable
 {
     [Header("Product")]
     [SerializeField] private ProductData product;
@@ -19,10 +20,12 @@ public class Shelf : MonoBehaviour, IBuildable, IShelf
 
     [Header("Stats")]
     [SerializeField, Min(0.1f)] private float pickDuration = 1.5f;
-    [Tooltip("Multiplies the product price. Reserved for future upgrades.")]
+    [Tooltip("Multiplies the product price. Overwritten by the upgrade level when the shelf is built through a slot.")]
     [SerializeField, Min(0.1f)] private float priceMultiplier = 1f;
 
     private bool[] occupied;
+    private ShelfBuildingData data;   // product and level table, set in OnBuilt
+    private int level = 1;
 
     public BuildSlot Slot { get; private set; }
     public ProductData Product => product;
@@ -52,7 +55,57 @@ public class Shelf : MonoBehaviour, IBuildable, IShelf
     private void OnEnable() => StoreRegistry.Register(this);
     private void OnDisable() => StoreRegistry.Unregister(this);
 
-    public void OnBuilt(BuildSlot slot) => Slot = slot;
+    public void OnBuilt(BuildSlot slot)
+    {
+        Slot = slot;
+
+        // The product and the level table come from the slot's data, so one shelf prefab can sell anything.
+        data = slot.Building as ShelfBuildingData;
+        if (data != null && data.Product != null)
+            product = data.Product;
+    }
+
+    // ------------------------------------------------------------------
+    // IUpgradable
+    // ------------------------------------------------------------------
+    public int Level => level;
+    public int MaxLevel => data != null && data.Levels.Count > 0 ? data.Levels.Count : 1;
+
+    /// <summary>Price to reach the next level (the table entry of that level).</summary>
+    public double NextUpgradePrice => level < MaxLevel ? data.Levels[level].costToReach : 0;
+
+    public void ApplyLevel(int newLevel)
+    {
+        level = Mathf.Clamp(newLevel, 1, MaxLevel);
+        if (data == null || data.Levels.Count == 0) return;
+
+        ShelfLevel stats = data.Levels[level - 1];
+        priceMultiplier = stats.priceMultiplier;
+        pickDuration = stats.pickDuration;
+    }
+
+    public IReadOnlyList<UpgradeStat> GetStats()
+    {
+        if (data == null || data.Levels.Count == 0)
+            return Array.Empty<UpgradeStat>();
+
+        ShelfLevel now = data.Levels[level - 1];
+        bool hasNext = level < data.Levels.Count;
+        ShelfLevel next = hasNext ? data.Levels[level] : now;
+
+        double basePrice = product != null ? product.BasePrice : 0;
+
+        return new[]
+        {
+            new UpgradeStat("Item price",
+                "$" + UpgradeStat.Number(basePrice * now.priceMultiplier),
+                hasNext ? "$" + UpgradeStat.Number(basePrice * next.priceMultiplier) : null),
+
+            new UpgradeStat("Pick time",
+                UpgradeStat.Number(now.pickDuration) + " s",
+                hasNext ? UpgradeStat.Number(next.pickDuration) + " s" : null)
+        };
+    }
 
     /// <summary>
     /// Reserves the free pick point closest to 'from'.

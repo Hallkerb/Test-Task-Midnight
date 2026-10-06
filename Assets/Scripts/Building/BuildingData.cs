@@ -5,7 +5,7 @@ using UnityEngine;
 /// Create assets via: Assets → Create → Tycoon → Building Data.
 /// A new purchasable item is just a new asset, no code changes needed.
 /// </summary>
-[CreateAssetMenu(fileName = "Building_", menuName = "Tycoon/Building Data")]
+[CreateAssetMenu(fileName = "Building", menuName = "Tycoon/Building Data")]
 public class BuildingData : ScriptableObject
 {
     [SerializeField] private string displayName = "New Building";
