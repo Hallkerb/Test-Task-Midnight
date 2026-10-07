@@ -47,7 +47,7 @@ public class UpgradePanel : MonoBehaviour
     {
         window.SetActive(false);
 
-        slots = new List<BuildSlot>(StoreRegistry.Slots);
+        slots = new List<BuildSlot>(StoreRegistry.BuildingSlots);
         foreach (BuildSlot slot in slots)
             slot.OnSelected += Show;
 
@@ -70,15 +70,19 @@ public class UpgradePanel : MonoBehaviour
         if (economy != null) economy.OnBalanceChanged -= HandleBalanceChanged;
     }
 
-    public void Show(BuildSlot slot)
+    public void Show(Slot slot)
     {
+        // Only building slots can be upgraded (store expansions have nothing to upgrade).
+        BuildSlot buildSlot = slot as BuildSlot;
+        if (buildSlot == null) return;
+
         if (selected != null)
         {
             selected.OnUpgraded -= HandleUpgraded;
             selected.SetSelected(false);
         }
 
-        selected = slot;
+        selected = buildSlot;
         selected.OnUpgraded += HandleUpgraded;
         selected.SetSelected(true);
 
@@ -104,7 +108,7 @@ public class UpgradePanel : MonoBehaviour
             selected.TryUpgrade();   // the window refreshes itself through OnUpgraded
     }
 
-    private void HandleUpgraded(BuildSlot slot) => Refresh();
+    private void HandleUpgraded(Slot slot) => Refresh();
 
     private void HandleBalanceChanged(CurrencyType type, double balance, double delta)
     {

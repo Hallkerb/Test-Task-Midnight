@@ -83,7 +83,7 @@ public class SlotHoverHighlight : MonoBehaviour, IPointerEnterHandler, IPointerE
     }
 
     // While hovered, the color follows purchases and balance changes (e.g. the player just became able to afford it).
-    private void HandleSlotChanged(BuildSlot _) => Refresh();
+    private void HandleSlotChanged(Slot _) => Refresh();
 
     private void HandleBalanceChanged(CurrencyType type, double balance, double delta)
     {

@@ -16,4 +16,6 @@ public class SaveData
 
     /// <summary>States of all saved buildings and slots.</summary>
     public List<BuildingSaveData> Buildings = new List<BuildingSaveData>();
+
+    public StoreLevelData StoreLevel = new StoreLevelData();
 }

@@ -26,7 +26,11 @@ public class CurrencyExchangePanel : MonoBehaviour
     {
         if (long.TryParse(value, out long amount))
         {
-            fromText.text = $"From: {EconomyManager.Format(amount)} Gems";
+            if (amount == 1)
+                fromText.text = $"From: {EconomyManager.Format(amount)} Gem";
+            else
+                fromText.text = $"From: {EconomyManager.Format(amount)} Gems";
+                
             toText.text = $"To: ${EconomyManager.Format(amount * EconomyManager.ExchangeRate)}";
         }
         else

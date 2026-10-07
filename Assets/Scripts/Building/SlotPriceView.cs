@@ -2,7 +2,7 @@ using TMPro;
 using UnityEngine;
 
 /// <summary>
-/// Floor label of a BuildSlot: shows the name and price on the slot rectangle.
+/// Floor label of a slot (building or store expansion): shows the name and price on the slot rectangle.
 /// Text color reflects the state:
 ///   Locked                    - grey, shows what must be built first
 ///   Available, can afford     - green
@@ -18,14 +18,14 @@ public class SlotPriceView : MonoBehaviour
 
     [SerializeField] private TextMeshPro label;
 
-    private BuildSlot slot;
+    private Slot slot;
     private EconomyManager economy;
 
     private void Awake()
     {
         if (label == null) label = GetComponentInChildren<TextMeshPro>();
 
-        slot = GetComponentInParent<BuildSlot>();
+        slot = GetComponentInParent<Slot>();
     }
 
     // Subscribe in Start: all Awake calls (EconomyManager.Instance) are guaranteed to be done.
@@ -33,7 +33,7 @@ public class SlotPriceView : MonoBehaviour
     {
         if (slot == null)
         {
-            Debug.LogWarning($"{name}: no BuildSlot found in parents.", this);
+            Debug.LogWarning($"{name}: no Slot found in parents.", this);
             return;
         }
 
@@ -52,11 +52,11 @@ public class SlotPriceView : MonoBehaviour
         if (economy != null) economy.OnBalanceChanged -= HandleBalanceChanged;
     }
 
-    private void HandleSlotChanged(BuildSlot _) => Refresh();
+    private void HandleSlotChanged(Slot _) => Refresh();
 
     private void HandleBalanceChanged(CurrencyType type, double balance, double delta)
     {
-        if (type == CurrencyType.Cash) Refresh();
+        if (type == slot.Currency) Refresh();
     }
 
     private void Refresh()
@@ -73,20 +73,28 @@ public class SlotPriceView : MonoBehaviour
                 break;
 
             case SlotState.Available:
-                bool canAfford = economy != null && economy.CanAfford(CurrencyType.Cash, slot.Building.Price);
+                bool canAfford = economy != null && economy.CanAfford(slot.Currency, slot.Price);
                 label.color = canAfford ? affordableColor : unaffordableColor;
-                label.text = $"{slot.Building.DisplayName}\n${EconomyManager.Format(slot.Building.Price)}";
+                label.text = $"{slot.DisplayName}\n{FormatPrice(slot.Price, slot.Currency)}";
                 break;
         }
     }
 
     private string BuildLockedText()
     {
-        BuildSlot required = slot.RequiredSlot;
-        string requiredName = required != null && required.Building != null
-            ? required.Building.DisplayName
-            : "previous";
+        if (StoreLevel.Instance != null && slot.RequiredLevel > StoreLevel.Instance.CurrentLevel)
+            return $"Need: Level {slot.RequiredLevel}";
+
+        Slot required = slot.RequiredSlot;
+        string requiredName = required != null ? required.DisplayName : "previous";
 
         return $"Need: {requiredName}";
+    }
+
+    /// <summary>Cash is shown as "$100", other currencies as "5 Gems".</summary>
+    private static string FormatPrice(double price, CurrencyType currency)
+    {
+        string amount = EconomyManager.Format(price);
+        return currency == CurrencyType.Cash ? "$" + amount : $"{amount} {currency}";
     }
 }

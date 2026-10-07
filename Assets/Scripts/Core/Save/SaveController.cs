@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 /// <summary>
 /// Lives in the game scene and drives saving and loading:
@@ -21,46 +22,50 @@ public class SaveController : MonoBehaviour
     /// </summary>
     public double OfflineEarnings { get; private set; }
 
-    private List<BuildSlot> slots;   // a copy: the registry may already be cleared when this object is destroyed
+    private List<Slot> slots;   // a copy: the registry may already be cleared when this object is destroyed
     private float timer;
 
-    private void Awake()
+    public event Action OnLoaded;  // raised after the save is loaded and all slots are restored
+
+    // Start runs after every Awake, so EconomyManager and all BuildSlots already exist.
+    private void Start()
     {
-        if (Instance != null)
+        if (Instance != null && Instance != this)
         {
             Destroy(gameObject);
             return;
         }
 
         Instance = this;
-    }
 
-    // Start runs after every Awake, so EconomyManager and all BuildSlots already exist.
-    private void Start()
-    {
         OfflineEarnings = SaveSystem.LoadGame();
 
         // Subscribe only after loading: restoring slots must not trigger a save.
-        slots = new List<BuildSlot>(StoreRegistry.Slots);
-        foreach (BuildSlot slot in slots)
+        slots = new List<Slot>(StoreRegistry.StoreSlots);
+        slots.AddRange(StoreRegistry.BuildingSlots);
+        foreach (Slot slot in slots)
         {
             slot.OnBuilt += HandleSlotChanged;
-            slot.OnUpgraded += HandleSlotChanged;
+            if (slot is BuildSlot buildSlot)
+                buildSlot.OnUpgraded += HandleSlotChanged;
         }
 
         timer = autosaveInterval;
+
+        OnLoaded?.Invoke();
     }
 
     private void OnDestroy()
     {
         if (slots == null) return;
 
-        foreach (BuildSlot slot in slots)
+        foreach (Slot slot in slots)
         {
             if (slot == null) continue;
 
             slot.OnBuilt -= HandleSlotChanged;
-            slot.OnUpgraded -= HandleSlotChanged;
+            if (slot is BuildSlot buildSlot)
+                buildSlot.OnUpgraded -= HandleSlotChanged;
         }
 
         if (Instance == this) Instance = null;
@@ -76,7 +81,7 @@ public class SaveController : MonoBehaviour
         SaveNow();
     }
 
-    private void HandleSlotChanged(BuildSlot slot) => SaveNow();
+    private void HandleSlotChanged(Slot slot) => SaveNow();
 
     private void OnApplicationPause(bool paused)
     {

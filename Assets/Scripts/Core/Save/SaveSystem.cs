@@ -43,6 +43,11 @@ public static class SaveSystem
                 saveData.Buildings = buildings;
             }
 
+            if (StoreLevel.Instance != null)
+            {
+                saveData.StoreLevel = StoreLevel.Instance.CaptureData();
+            }
+
             WriteToDisk(JsonUtility.ToJson(saveData, true));
         }
         catch (Exception ex)
@@ -64,6 +69,12 @@ public static class SaveSystem
             {
                 EconomyManager.Instance.ResetToNewGame();
             }
+
+            if (StoreLevel.Instance != null)
+            {
+                StoreLevel.Instance.ResetToNewGame();
+            }
+
             return 0;
         }
 
@@ -72,6 +83,11 @@ public static class SaveSystem
         if (EconomyManager.Instance != null && saveData.Economy != null)
         {
             offlineEarnings = EconomyManager.Instance.ApplyData(saveData.Economy);
+        }
+
+        if (StoreLevel.Instance != null && saveData.StoreLevel != null)
+        {
+            StoreLevel.Instance.ApplyData(saveData.StoreLevel);
         }
 
         ApplyBuildings(saveData.Buildings);
@@ -158,7 +174,7 @@ public static class SaveSystem
         var result = new List<BuildingSaveData>();
         var usedIds = new HashSet<string>();
 
-        foreach (BuildSlot slot in StoreRegistry.Slots)
+        foreach (Slot slot in StoreRegistry.StoreSlots)
         {
             if (!usedIds.Add(slot.SlotId))
             {
@@ -168,7 +184,21 @@ public static class SaveSystem
             result.Add(new BuildingSaveData
             {
                 BuildingId = slot.SlotId,
-                CurrentLevel = slot.Level,
+                IsUnlocked = slot.State == SlotState.Built
+            });
+        }
+
+        foreach (Slot slot in StoreRegistry.BuildingSlots)
+        {
+            if (!usedIds.Add(slot.SlotId))
+            {
+                Debug.LogWarning($"[SaveSystem] Duplicate slot id '{slot.SlotId}': give every BuildSlot a unique Slot Id.", slot);
+            }
+
+            result.Add(new BuildingSaveData
+            {
+                BuildingId = slot.SlotId,
+                CurrentLevel = (slot as BuildSlot)?.Level ?? 0,
                 IsUnlocked = slot.State == SlotState.Built
             });
         }
@@ -191,13 +221,26 @@ public static class SaveSystem
             }
         }
 
-        foreach (BuildSlot slot in StoreRegistry.Slots)
+        foreach (Slot slot in StoreRegistry.StoreSlots)
         {
-            if (byId.TryGetValue(slot.SlotId, out BuildingSaveData data) && data.IsUnlocked)
-            {
-                // Older saves have no level (0): treat that as level 1.
-                slot.RestoreBuilt(Mathf.Max(1, data.CurrentLevel));
-            }
+            TryRestore(byId, slot);
         }
+
+        foreach (Slot slot in StoreRegistry.BuildingSlots)
+        {
+            TryRestore(byId, slot);
+        }
+    }
+
+    private static bool TryRestore(Dictionary<string, BuildingSaveData> byId, Slot slot)
+    {
+        if (byId.TryGetValue(slot.SlotId, out BuildingSaveData data) && data.IsUnlocked)
+        {
+            // Older saves have no level (0): treat that as level 1.
+            slot.RestoreBuilt(Mathf.Max(1, data.CurrentLevel));
+            return true;
+        }
+
+        return false;
     }
 }

@@ -12,14 +12,14 @@ public static class StoreRegistry
 {
     private static readonly List<IShelf> shelves = new List<IShelf>();
     private static readonly List<ICheckout> checkouts = new List<ICheckout>();
-    private static readonly List<BuildSlot> slots = new List<BuildSlot>();
+    private static readonly List<BuildSlot> buildingSlots = new List<BuildSlot>();
     private static readonly List<StoreSlot> storeSlots = new List<StoreSlot>();
 
     public static IReadOnlyList<IShelf> Shelves => shelves;
     public static IReadOnlyList<ICheckout> Checkouts => checkouts;
 
     /// <summary>All build slots of the scene (used by the save system).</summary>
-    public static IReadOnlyList<BuildSlot> Slots => slots;
+    public static IReadOnlyList<BuildSlot> BuildingSlots => buildingSlots;
     public static IReadOnlyList<StoreSlot> StoreSlots => storeSlots;
 
     public static event Action OnAnyRegisteredChanged;
@@ -51,7 +51,7 @@ public static class StoreRegistry
     {
         shelves.Clear();
         checkouts.Clear();
-        slots.Clear();
+        buildingSlots.Clear();
     }
 
     public static void Register(IShelf shelf)
@@ -86,16 +86,16 @@ public static class StoreRegistry
 
     public static void Register(BuildSlot slot)
     {
-        if (!slots.Contains(slot)) 
+        if (!buildingSlots.Contains(slot)) 
         {
-            slots.Add(slot);
+            buildingSlots.Add(slot);
             OnAnyRegisteredChanged?.Invoke();
         }
     }
 
     public static void Unregister(BuildSlot slot)
     {
-        slots.Remove(slot);
+        buildingSlots.Remove(slot);
         OnAnyRegisteredChanged?.Invoke();
     }
 
